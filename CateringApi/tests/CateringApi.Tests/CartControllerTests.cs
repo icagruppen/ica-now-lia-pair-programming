@@ -2,95 +2,101 @@ using CateringApi.Controllers;
 using CateringApi.DTOs;
 using CateringApi.Services;
 using Microsoft.AspNetCore.Mvc;
-using Moq;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
+using NUnit.Framework;
 
 namespace CateringApi.Tests;
 
 public class CartControllerTests
 {
-    private readonly Mock<ICartService> _mockCartService = new();
+    private readonly ICartService _mockCartService = Substitute.For<ICartService>();
     private readonly CartController _controller;
 
     public CartControllerTests()
     {
-        _controller = new CartController(_mockCartService.Object);
+        _controller = new CartController(_mockCartService);
     }
 
     private static CartResponse MakeCart(string sessionId) =>
         new(1, sessionId, DateTime.UtcNow, DateTime.UtcNow, [], 0m);
 
-    [Fact]
+    [Test]
     public async Task GetCart_WhenExists_ReturnsOk()
     {
         var cart = MakeCart("session-1");
-        _mockCartService.Setup(s => s.GetCartAsync("session-1")).ReturnsAsync(cart);
+        _mockCartService.GetCartAsync("session-1").Returns(cart);
         var result = await _controller.GetCart("session-1");
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(cart, ok.Value);
+        Assert.That(result, Is.InstanceOf<OkObjectResult>());
+        var ok = (OkObjectResult)result;
+        Assert.That(ok.Value, Is.EqualTo(cart));
     }
 
-    [Fact]
+    [Test]
     public async Task GetCart_WhenNotFound_ReturnsNotFound()
     {
-        _mockCartService.Setup(s => s.GetCartAsync("missing")).ReturnsAsync((CartResponse?)null);
+        _mockCartService.GetCartAsync("missing").Returns((CartResponse?)null);
         var result = await _controller.GetCart("missing");
-        Assert.IsType<NotFoundResult>(result);
+        Assert.That(result, Is.InstanceOf<NotFoundResult>());
     }
 
-    [Fact]
+    [Test]
     public async Task AddItem_ReturnsOk()
     {
         var request = new AddCartItemRequest(1, 2);
         var cart = MakeCart("session-1");
-        _mockCartService.Setup(s => s.AddItemAsync("session-1", request)).ReturnsAsync(cart);
+        _mockCartService.AddItemAsync("session-1", request).Returns(cart);
         var result = await _controller.AddItem("session-1", request);
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(cart, ok.Value);
+        Assert.That(result, Is.InstanceOf<OkObjectResult>());
+        var ok = (OkObjectResult)result;
+        Assert.That(ok.Value, Is.EqualTo(cart));
     }
 
-    [Fact]
+    [Test]
     public async Task AddItem_WhenProductNotFound_ReturnsNotFound()
     {
         var request = new AddCartItemRequest(999, 1);
-        _mockCartService.Setup(s => s.AddItemAsync("session-1", request)).ThrowsAsync(new KeyNotFoundException());
+        _mockCartService.AddItemAsync("session-1", request).ThrowsAsync(new KeyNotFoundException());
         var result = await _controller.AddItem("session-1", request);
-        Assert.IsType<NotFoundResult>(result);
+        Assert.That(result, Is.InstanceOf<NotFoundResult>());
     }
 
-    [Fact]
+    [Test]
     public async Task UpdateItem_WhenFound_ReturnsOk()
     {
         var request = new UpdateCartItemRequest(3);
         var cart = MakeCart("session-1");
-        _mockCartService.Setup(s => s.UpdateItemAsync("session-1", 1, request)).ReturnsAsync(cart);
+        _mockCartService.UpdateItemAsync("session-1", 1, request).Returns(cart);
         var result = await _controller.UpdateItem("session-1", 1, request);
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(cart, ok.Value);
+        Assert.That(result, Is.InstanceOf<OkObjectResult>());
+        var ok = (OkObjectResult)result;
+        Assert.That(ok.Value, Is.EqualTo(cart));
     }
 
-    [Fact]
+    [Test]
     public async Task RemoveItem_WhenFound_ReturnsOk()
     {
         var cart = MakeCart("session-1");
-        _mockCartService.Setup(s => s.RemoveItemAsync("session-1", 1)).ReturnsAsync(cart);
+        _mockCartService.RemoveItemAsync("session-1", 1).Returns(cart);
         var result = await _controller.RemoveItem("session-1", 1);
-        var ok = Assert.IsType<OkObjectResult>(result);
-        Assert.Equal(cart, ok.Value);
+        Assert.That(result, Is.InstanceOf<OkObjectResult>());
+        var ok = (OkObjectResult)result;
+        Assert.That(ok.Value, Is.EqualTo(cart));
     }
 
-    [Fact]
+    [Test]
     public async Task ClearCart_WhenExists_ReturnsNoContent()
     {
-        _mockCartService.Setup(s => s.ClearCartAsync("session-1")).ReturnsAsync(true);
+        _mockCartService.ClearCartAsync("session-1").Returns(true);
         var result = await _controller.ClearCart("session-1");
-        Assert.IsType<NoContentResult>(result);
+        Assert.That(result, Is.InstanceOf<NoContentResult>());
     }
 
-    [Fact]
+    [Test]
     public async Task ClearCart_WhenNotFound_ReturnsNotFound()
     {
-        _mockCartService.Setup(s => s.ClearCartAsync("missing")).ReturnsAsync(false);
+        _mockCartService.ClearCartAsync("missing").Returns(false);
         var result = await _controller.ClearCart("missing");
-        Assert.IsType<NotFoundResult>(result);
+        Assert.That(result, Is.InstanceOf<NotFoundResult>());
     }
 }
